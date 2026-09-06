@@ -9,3 +9,4 @@ python-dotenv>=1.0.0
 openai>=1.0.0
 print-color>=0.4.6
 streamlit>=1.30.0
+langchain-community>=0.2.0
