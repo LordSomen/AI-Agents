@@ -1,5 +1,10 @@
-from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import (
+    PromptTemplate, 
+    ChatPromptTemplate, 
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate, 
+    HumanMessagePromptTemplate
+)
 
 
 def get_intent_classification_prompt() -> PromptTemplate:
