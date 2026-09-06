@@ -67,5 +67,6 @@ class SessionState(BaseModel):
     user_id: str
     conversation_history: List[TypedDict] = Field(default_factory=lambda: list)
     document_context: List[str] = Field(default_factory=lambda: list, description="Active document IDs")
+    total_tokens: int = Field(default=0, description="Total tokens used in this session")
     created_at: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)

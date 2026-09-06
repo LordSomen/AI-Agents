@@ -6,6 +6,9 @@ import uuid
 
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
+from langchain_community.callbacks.manager import get_openai_callback
+
+MAX_TOKENS_PER_SESSION = 20000
 
 from schemas import SessionState
 from retrieval import SimulatedRetriever
@@ -116,9 +119,17 @@ class DocumentAssistant:
     def process_message(self, user_input: str) -> Dict[str, Any]:
         """Process a user message using the LangGraph workflow."""
 
-#TODO: Complete the config dictionary to set the thread_ud, llm, and tools to the workflow
-        # Refer to README.md Task 2.6 for details
-        # Complete the config dictionary to set the thread_id, llm, and tools to the workflow
+        if not self.current_session:
+            raise ValueError("No active session. Call start_session() first.")
+
+        # ENFORCE BUDGET: Check if user exceeded token limit
+        if self.current_session.total_tokens > MAX_TOKENS_PER_SESSION:
+            return {
+                "success": False,
+                "error": f"Budget Exceeded! You have used {self.current_session.total_tokens} tokens (Limit: 20,000). Please refresh to start a new session.",
+                "response": None
+            }
+
         config = {
             "configurable": {
                 "thread_id": self.current_session.session_id,
@@ -127,8 +138,6 @@ class DocumentAssistant:
             }
         }
 
-        if not self.current_session:
-            raise ValueError("No active session. Call start_session() first.")
         initial_state: AgentState = {
             "messages": [],
             "user_input": user_input,
@@ -141,15 +150,15 @@ class DocumentAssistant:
             "tools_used": [],
             "session_id": self.current_session.session_id,
             "user_id": self.current_session.user_id,
-            # Initialise actions_taken list for this turn
             "actions_taken": []
         }
         try:
-            # Invoke the workflow with a thread_id equal to the session_id
-            final_state = self.workflow.invoke(initial_state, config=config)
-            # Update session with new state
-            if final_state.get("messages"):
+            # Track tokens during invocation
+            with get_openai_callback() as cb:
+                final_state = self.workflow.invoke(initial_state, config=config)
+                self.current_session.total_tokens += cb.total_tokens
 
+            if final_state.get("messages"):
                 self.current_session.conversation_history.append(final_state)
                 self.current_session.last_updated = datetime.now()
                 if final_state.get("active_documents"):
@@ -158,6 +167,7 @@ class DocumentAssistant:
                         final_state["active_documents"]
                     ))
                 self._save_session()
+                
             return {
                 "success": True,
                 "response": final_state.get("messages")[-1].content if final_state.get("messages") else None,
